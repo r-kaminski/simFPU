@@ -142,7 +142,7 @@ call to_number
 
 cmp %r9, %r8
 je before_add  # gdy wykładniki są równe, to możemy po prostu dodać mantysy
-jmp bevore_convert
+jmp before_convert
 
 
 before_add:
@@ -176,14 +176,19 @@ shift_first_num:
 # shr A, B - przesunięcie bitowe B o A w prawo (podzielenie przez 2^A)
 # nasze A to %r9 - patrz "convert_r8"
 # nasze B to mantysa pierwszej liczby, czyli %r15
-shr %r9, %r15
+mov %r9, %rcx
+shr %cl, %r15   # cl to rejestr przesunięcia
+#shr %r9, %r15
+
 # NIEDOZWOLONE UŻYCIE REJESTRU JAKO "A" W SHR, chyba po prostu trzeba dzielić przez 2, %r9 razy
 
 jmp add_values
 
 
 shift_second_num:
-shr %r8, %r14
+mov %r8, %rcx
+shr %cl, %r14   # cl to rejestr przesunięcia
+#shr %r8, %r14
 # patrz wyżej
 jmp add_values
 
