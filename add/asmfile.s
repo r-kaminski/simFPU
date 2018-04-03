@@ -92,6 +92,7 @@ jne input_error
 #   |wykladnik|
 
 # --- PRZED PROCEDURĄ ZAMIANY WYKŁADNIKA
+first_exp:
 mov $input1, %r10   # wskaźnik na pierwszy element ciągu
 mov $11, %rdi       # iterator ciągu - będziemy dekrementować od 12 elementu (indeks = 11)
 mov $1, %r11        # iterujemy do 1 elementu
@@ -103,6 +104,7 @@ call to_number
 
 mov %r14, %r15      # przechowanie pierwszej sumy w innym rejestrze
 
+second_exp:
 # --- PRZED PROCEDURĄ ZAMIANY WYKŁADNIKA
 mov $input2, %r10
 mov $11, %rdi
@@ -120,6 +122,7 @@ mov %r14, %r9
 # %r9 = wykładnik drugiej liczby
 
 # --- OBLICZENIE MANTYS
+first_man:
 mov $input1, %r10
 mov $63, %rdi
 mov $12, %r11
@@ -130,6 +133,7 @@ mov $0, %r14
 call to_number
 mov %r14, %r15  # %r15 - mantysa pierwszej liczby
 
+second_man:
 mov $input2, %r10
 mov $63, %rdi
 mov $12, %r11
@@ -177,21 +181,29 @@ shift_first_num:
 # nasze A to %r9 - patrz "convert_r8"
 # nasze B to mantysa pierwszej liczby, czyli %r15
 mov %r9, %rcx
-shr %cl, %r15   # cl to rejestr przesunięcia
-#shr %r9, %r15
+cmp $255, %rcx
+jg set_zero_r15
 
-# NIEDOZWOLONE UŻYCIE REJESTRU JAKO "A" W SHR, chyba po prostu trzeba dzielić przez 2, %r9 razy
+shr %cl, %r15   # cl to rejestr przesunięcia
+jmp add_values
+
+set_zero_r15:
+mov $0, %r15
 
 jmp add_values
 
 
 shift_second_num:
 mov %r8, %rcx
-shr %cl, %r14   # cl to rejestr przesunięcia
-#shr %r8, %r14
-# patrz wyżej
+cmp $255, %rcx
+jg set_zero_r14
+
+shr %cl, %r14 
 jmp add_values
 
+set_zero_r14:
+mov $0, %r14
+jmp add_values
 
 
 # --- DODAWANIE MANTYS
@@ -203,17 +215,17 @@ movb input1(, %rdi, 1), %al
 movb input2(, %rdi, 1), %bl
 
 
-cmp $0, %al
+cmp $'0', %al
 je first_plus
 jne first_minus
 
 first_plus:
-cmp $0, %bl
+cmp $'0', %bl
 je both_plus
 jne first_plus_second_minus
 
 first_minus:
-cmp $0, %bl
+cmp $'0', %bl
 je first_minus_second_plus
 jne both_plus   # teoretycznie to "both minus" ale ważne, że mają takie same znaki, więc dodajemy normalnie
 
@@ -265,6 +277,7 @@ inc %r8         # dodanie 1 do wykładnika
 end_add:
 # S = %r13 (znak specjalny, 0 to plus, 1 to minus)
 # E = %rdx (wykładnik)
+mov %rdx, %r8
 # M = %r15 (mantysa)
 mov $1, %rax
 mul %r13
@@ -273,13 +286,53 @@ add $0x30, %al
 mov $0, %rdi
 movb %al, sum(, %rdi, 1)
 
+
+mov %r8, %rax
+mov $2, %r11
+mov $11, %rdi
 # --- zamiana wykładnika na ASCII i zapisanie
+write_exponent:
+cmp $1, %rdi
+jge cont_write_exp
 
-# --- zamiana mantysy na ASCII i zapisanie
+jmp after_write_exp
 
+cont_write_exp:
+mov $0, %rdx
+div %r11    # dzielenie przez 2
+add $'0', %dl
+movb %dl, sum(, %rdi, 1)
+dec %rdi
 
+cmp $0, %rax
+jne write_exponent
 
-jmp write_nums
+after_write_exp:
+
+mov %r15, %rax
+mov $63, %rdi
+
+write_man:
+cmp $12, %rdi
+jge cont_write_man
+
+jmp after_write_man
+
+cont_write_man:
+mov $0, %rdx
+div %r11
+add $'0', %dl
+movb %dl, sum(, %rdi, 1)
+dec %rdi
+
+cmp $0, %rax
+jne write_man
+# --- /\ zamiana mantysy na ASCII i zapisanie
+after_write_man:
+mov $64, %rdi
+movb $0x0A, sum(, %rdi, 1)
+
+jmp write_sum
 
 
 # --- SPROWADZENIE ZNAKÓW WYKŁADNIKA DO LICZBY
@@ -289,6 +342,10 @@ sub $0x30, %bl      # zamiana z ASCII na cyfre
 
 cmp $11, %rdi       # jeśli to pierwsza iteracja, tj. wyciągamy pierwszy znak, to nie mnożymy
 je add_first
+
+cmp $63, %rdi       # to samo co wyzej, ale dla mantysy
+je add_first
+
 
 exponent:
 mov %r12, %rax      # aktualna potęga
@@ -311,19 +368,12 @@ jge to_number
 ret
 
 
-write_nums:
+write_sum:
 # --- WYPISANIE NA EKRAN
 mov $SYSWRITE, %rax
 mov $STDOUT, %rdi
-mov $input1, %rsi
-mov %r8, %rdx
-syscall
-
-
-mov $SYSWRITE, %rax
-mov $STDOUT, %rdi
-mov $input2, %rsi
-mov %r9, %rdx
+mov $sum, %rsi
+mov $65, %rdx
 syscall
 
 jmp exit
