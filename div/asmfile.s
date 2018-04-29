@@ -117,12 +117,75 @@ jge to_number
 
 ret
 
-
-
+# --- CZĘŚĆ GŁÓWNA PROGRAMU
 after_def:
+# Pierwszy krok to dzielenie mantys, w tym celu zamieniamy obie mantysy na reprezentacje dziesiętną
+
+first_man:
+mov $input1, %r10
+mov $63, %rdi
+mov $12, %r11
+mov $1, %r12
+mov $2, %r13
+
+mov $0, %r14
+call to_number
+mov %r14, %r15  # %r15 - mantysa pierwszej liczby
+
+second_man:
+mov $input2, %r10
+mov $63, %rdi
+mov $12, %r11
+mov $1, %r12
+mov $2, %r13
+
+mov $0, %r14
+call to_number
+# %r14 - mantysa drugiej liczby
 
 
+# --- SPRAWDZAMY, CZY I ILE RAZY MANTYSA PIERWSZA JEST MNIEJSZA OD MANTYSY DRUGIEJ
+# JEŚLI JEST MNIEJSZA, TO MNOŻYMY JĄ RAZY 10 TAK DŁUGO, AŻ BĘDZIE RÓWNA/WIĘKSZA OD MANTYSY DRUGIEJ
+# LICZNIK ILE RAZY POMNOŻYLIŚMY JĄ PRZEZ 10 BĘDZIE KOREKTĄ WYKŁADNIKA
 
+cmp %r14, %r15
+jl before_correction
+jge after_correction
+
+before_correction:
+mov $0, %r8         # licznik korekty
+mov %r15, %rax
+mov $10, %r9
+
+count_correction:
+mul %r9             # pomnożenie mantysy pierwszej liczby (teraz w %rax) przez 10
+inc %r8             # korekta do wykładnika
+cmp %r14, %rax      # sprawdzamy, czy pierwsza mantysa nadal jest mniejsza od drugiej 
+jl count_correction
+
+
+after_correction:
+# procedura dzielenia
+mov %r15, %rax
+mov $0, %rdx
+div %r14
+
+cmp $0, %rdx
+jne add_rest
+je skip_rest
+
+add_rest:
+mov $10, %r9
+mul %r9
+add %rdx, %rax
+
+
+skip_rest:
+# %rax - wynik dzielenia, mantysa wynikowa
+mov %rax, %r15      # przechowujemy ją w %r15
+
+
+# --- TODO: PROCEDURA ODEJMOWANIA WYKŁADNIKÓW, DODANIA OBCIĄŻENIA I KOREKTY
 
 
 
