@@ -19,7 +19,10 @@ shift_var = 0
 .bss
 .comm input1, 65     # 64 + \n
 .comm input2, 65
+.comm div_buff, 52
+.comm help_buff, 52
 .comm div_result, 65
+
 
 .text
 .global main
@@ -169,21 +172,63 @@ after_correction:
 mov %r15, %rax
 mov $0, %rdx
 div %r14
+# wynik dzielenia w rax
+mov $0, %rdi
+mov %al, help_buff(, %rdi, 1)
+inc %rdi
+# reszta w rdx
+mov %rdx, %r13
 
-cmp $0, %rdx
-jne add_rest
-je skip_rest
+jmp after_bin_def
+
+to_binary:
+mov $2, %r11
+mov $0, %rdi
+
+to_binary_loop:
+div %r11
+mov %dl, EXAMPLE_BUFF(, %rdi, 1)
+inc %rdi
+cmp $0, %rax
+jne to_binary_loop
+
+ret
+
+
+after_bin_def:
 
 add_rest:
-mov $10, %r9
+
+cmp %r14, %r13
+jl mul_rest
+jge div_rest
+
+mul_rest:
+mov %r13, %rax
 mul %r9
-add %rdx, %rax
+mov %rax, %r13
+jmp add_rest
+
+div_rest:
+mov %r13, %rax
+mov $0, %rdx
+div %r14
+# rdx - przechowuje resztę
+mov %rdx, %r13
+# rax - wynik dzielenia, zapisujemy do bufora
+mov %al, help_buff(, %rdi, 1)
+inc %rdi
+
+cmp $52, %rdi
+jle add_rest
+
+# help_buff przechowuje teraz wynik mantysy w systemie dziesietnym (52 znaki). Nalezy zamienic ten wynik na reprezentacje binarna. W tym celu zamieniamy bufor na liczbe, nastepnie dzielimy przez 2. Zapisujemy wyniki reszty po kolei do bufora. Na koncu bierzemy tylko 52 ostatnie reszty - jest to mantysa wynikowa.
 
 
-skip_rest:
-# %rax - wynik dzielenia, mantysa wynikowa
-mov %rax, %r15      # przechowujemy ją w %r15
 
+
+end_of_first_result:
+# --- koniec zapisywania mantysy - jest przechowywana w buforze
 
 # --- TODO: PROCEDURA ODEJMOWANIA WYKŁADNIKÓW, DODANIA OBCIĄŻENIA I KOREKTY
 
