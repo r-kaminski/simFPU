@@ -19,8 +19,9 @@ shift_var = 0
 .bss
 .comm input1, 65     # 64 + \n
 .comm input2, 65
-.comm div_buff, 52
-.comm help_buff, 52
+.comm help_buff_bin, 66
+.comm rev_help_buff_bin, 66
+.comm help_buff, 19
 .comm div_result, 65
 
 
@@ -166,6 +167,7 @@ inc %r8             # korekta do wykładnika
 cmp %r14, %rax      # sprawdzamy, czy pierwsza mantysa nadal jest mniejsza od drugiej 
 jl count_correction
 
+mov %rax, %r15
 
 after_correction:
 # procedura dzielenia
@@ -174,7 +176,7 @@ mov $0, %rdx
 div %r14
 # wynik dzielenia w rax
 mov $0, %rdi
-mov %al, help_buff(, %rdi, 1)
+movb %al, help_buff(, %rdi, 1)
 inc %rdi
 # reszta w rdx
 mov %rdx, %r13
@@ -187,7 +189,7 @@ mov $0, %rdi
 
 to_binary_loop:
 div %r11
-mov %dl, EXAMPLE_BUFF(, %rdi, 1)
+movb %dl, EXAMPLE_BUFF(, %rdi, 1)
 inc %rdi
 cmp $0, %rax
 jne to_binary_loop
@@ -207,7 +209,7 @@ mul_rest:
 mov %r13, %rax
 mul %r9
 mov %rax, %r13
-jmp add_rest
+#jmp add_rest
 
 div_rest:
 mov %r13, %rax
@@ -216,19 +218,69 @@ div %r14
 # rdx - przechowuje resztę
 mov %rdx, %r13
 # rax - wynik dzielenia, zapisujemy do bufora
-mov %al, help_buff(, %rdi, 1)
+movb %al, help_buff(, %rdi, 1)
 inc %rdi
 
-cmp $52, %rdi
-jle add_rest
+cmp $19, %rdi
+jl add_rest
 
 # help_buff przechowuje teraz wynik mantysy w systemie dziesietnym (52 znaki). Nalezy zamienic ten wynik na reprezentacje binarna. W tym celu zamieniamy bufor na liczbe, nastepnie dzielimy przez 2. Zapisujemy wyniki reszty po kolei do bufora. Na koncu bierzemy tylko 52 ostatnie reszty - jest to mantysa wynikowa.
+mov $18, %rdi   # licznik bufora
+mov $10, %r12   # czynnik mnożenia
+mov $10, %r10   # pomocniczy czynnik mnożenia
+mov $0, %r11    # suma
+
+
+convert_div_to_number:
+movb help_buff(, %rdi, 1), %al
+dec %rdi
+
+cmp $18, %rdi
+je add_div_to_number
+
+mul %r12
+mov %rax, %rbx
+mov %r12, %rax
+mul %r10
+mov %rax, %r12
+mov %rbx, %rax
+
+
+add_div_to_number:
+add %rax, %r11
+
+cmp $0, %rdi
+jge convert_div_to_number
+
+# teraz w r11 znajduje się mantysa w reprezentacji dziesiętnej
+mov $2, %r10    # rejestr do dzielenia
+mov %r11, %rax
+mov $0, %rdi
+
+convert_div_to_binary:
+mov $0, %rdx
+div %r10
+movb %dl, help_buff_bin(, %rdi, 1)
+inc %rdi
+cmp $66, %rdi
+jl convert_div_to_binary
+
+dec %rdi
+mov $0, %r10
+
+reverse_div_to_binary:
+movb help_buff_bin(, %rdi, 1), %al
+movb %al, rev_help_buff_bin(, %r10, 1)
+dec %rdi
+inc %r10
+
+cmp $0, %rdi
+jge reverse_div_to_binary
+
+# --- mantysa zapisana na 66 znakach w rep. binarnej przechowywana w rev_help_buff_bin. Wyciągamy tylko 52 znaki.
 
 
 
-
-end_of_first_result:
-# --- koniec zapisywania mantysy - jest przechowywana w buforze
 
 # --- TODO: PROCEDURA ODEJMOWANIA WYKŁADNIKÓW, DODANIA OBCIĄŻENIA I KOREKTY
 
