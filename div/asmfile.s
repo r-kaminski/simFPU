@@ -181,23 +181,6 @@ inc %rdi
 # reszta w rdx
 mov %rdx, %r13
 
-jmp after_bin_def
-
-to_binary:
-mov $2, %r11
-mov $0, %rdi
-
-to_binary_loop:
-div %r11
-movb %dl, EXAMPLE_BUFF(, %rdi, 1)
-inc %rdi
-cmp $0, %rax
-jne to_binary_loop
-
-ret
-
-
-after_bin_def:
 
 add_rest:
 
@@ -278,11 +261,133 @@ cmp $0, %rdi
 jge reverse_div_to_binary
 
 # --- mantysa zapisana na 66 znakach w rep. binarnej przechowywana w rev_help_buff_bin. Wyciągamy tylko 52 znaki.
+mov $0, %rdi
+mov $12, %r10
+move_man_to_result:
+movb rev_help_buff_bin(, %rdi, 1), %al
+add $'0', %al
+movb %al, div_result(, %r10, 1)
+inc %rdi
+inc %r10
+
+cmp $52, %rdi
+jl move_man_to_result
 
 
+# --- koniec operacji na mantysie
+
+# --- ZAMIANA WYKŁADNIKÓW NA LICZBY W REJESTRZE
+
+first_exp:
+mov $input1, %r10
+mov $11, %rdi
+mov $1, %r11
+mov $1, %r12
+mov $2, %r13
+
+mov $0, %r14    # suma
+call to_number
+
+mov %r14, %r15  # przechowanie pierwszej sumy w innym rejestrze
+
+second_exp:
+mov $input2, %r10
+mov $11, %rdi
+mov $1, %r11
+mov $1, %r12
+mov $2, %r13
+
+call to_number 
 
 
-# --- TODO: PROCEDURA ODEJMOWANIA WYKŁADNIKÓW, DODANIA OBCIĄŻENIA I KOREKTY
+# %r15 - wykładnik pierwszej liczby
+
+# %r14 - wykładnik drugiej liczby
+
+# %r15 = %r15 - %r14
+sub %r14, %r15
+
+
+# podczas odejmowania wykładników "odjęliśmy" dwa razy obciążenie
+# pierwsza korekcja wyniku polega na dodaniu obciążenia
+# k = 11, 2^(k-1) - 1 = 0b01111111111 = 1023
+
+mov $1023, %r10
+
+# %r15 = %r15 + %r10
+add %r10, %r15
+
+
+# druga korekta to licznik, ile razy pomnożyliśmy pierwszą mantysę przez 10, zanim zaczęliśmy dzielić. Licznik ten przechowujemy w %r8.
+
+add %r8, %r15
+
+mov %r15, %rax
+mov $2, %r11
+mov $11, %rdi
+
+write_exponent:
+cmp $1, %rdi
+jge cont_write_exp
+
+jmp after_write_exp
+
+cont_write_exp:
+mov $0, %rdx
+div %r11    # dzielenie przez 2
+add $'0', %dl
+movb %dl, div_result(, %rdi, 1)
+dec %rdi
+
+cmp $0, %rax
+jne write_exponent
+
+after_write_exp:
+# zapisaliśmy wykładnik, teraz zajmujemy się znakiem specjalnym
+
+mov $0, %rdi
+movb input1(, %rdi, 1), %al
+movb input2(, %rdi, 1), %bl
+
+cmp $0, %al
+je first_plus
+jne first_minus
+
+
+first_plus:
+cmp $0, %bl
+je both_plus
+jne first_plus_second_minus
+
+
+first_minus:
+cmp $0, %bl
+je first_minus_second_plus
+jne both_minus
+
+
+both_plus:
+mov $0, %al
+jmp end_check
+
+both_minus:
+mov $1, %al
+jmp end_check
+
+first_plus_second_minus:
+mov $1, %al
+jmp end_check
+
+first_minus_second_plus:
+mov $1, %al
+jmp end_check
+
+
+end_check:
+add $'0', %al
+movb %al, div_result(, %rdi, 1)
+
+
 
 
 
