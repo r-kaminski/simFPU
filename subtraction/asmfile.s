@@ -9,8 +9,8 @@ FREAD = 0
 FWRITE = 1
 SYSEXIT = 60
 EXIT_SUCCESS = 0
-file1: .ascii "file1.txt\0"
-file2: .ascii "file2.txt\0"
+file1: .ascii "fpu1.txt\0"
+file2: .ascii "fpu2.txt\0"
 
 .bss
 .comm number1, 64
