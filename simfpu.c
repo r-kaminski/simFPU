@@ -195,7 +195,11 @@ int main(void) {
                     break;
 
                 case 6:
-                    //TODO: uruchamianie odwrotności
+                    plik1 = fopen("./div/fpu1.txt", "w");
+		    fputs(num1, plik1);
+		    fclose(plik1);
+
+		    system("cd reverse; ./asmfile");
                     break;
                 default:
                     break;
